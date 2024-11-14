@@ -1,0 +1,43 @@
+version: "3.8"
+services:
+  postgres_db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  fastapi_service:
+    build:
+      context: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://user:password@postgres_db:5432/mydatabase
+      KEYCLOAK_SERVER_URL: "http://keycloak:8080"
+      REALM_NAME: "myrealm"
+      CLIENT_ID: "fastapi-client"
+      CLIENT_SECRET: "fastapi-clientsecret"  # Remplace par ton secret client Keycloak
+    depends_on:
+      - postgres_db
+      - keycloak
+    restart: always
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin_password
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data  # Persistance des données de Keycloak
+    restart: always
+
+volumes:
+  postgres_data:
+  keycloak_data:
