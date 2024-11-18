@@ -5,9 +5,9 @@ import os
 
 # URL du serveur Keycloak et configuration du client
 KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL", "http://localhost:8080")
-REALM_NAME = os.getenv("REALM_NAME", "myrealm")
+REALM_NAME = os.getenv("REALM_NAME", "myreal")
 CLIENT_ID = os.getenv("CLIENT_ID", "fastapi-client")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET", "client_secret_here")  # Remplace par ton secret client Keycloak
+CLIENT_SECRET = os.getenv("CLIENT_SECRET", "fastapi-clientsecret")  # Remplace par ton secret client Keycloak
 
 # OAuth2 pour extraire le token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{KEYCLOAK_SERVER_URL}/realms/{REALM_NAME}/protocol/openid-connect/token")

@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Form
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from .auth import get_current_user
-
+import requests
 
 app = FastAPI()
 
@@ -56,3 +56,28 @@ def create_user(user: User):
     finally:
         cursor.close()
         conn.close()
+
+
+@app.post("/login")
+async def login(username: str = Form(...), password: str = Form(...)):
+    KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL", "http://localhost:8080")
+    REALM_NAME = os.getenv("REALM_NAME", "myrealm")
+    CLIENT_ID = os.getenv("CLIENT_ID", "fastapi-client")
+    CLIENT_SECRET = os.getenv("CLIENT_SECRET", "fastapi-clientsecret")
+
+    # Faire une requête à Keycloak pour obtenir un token d'accès
+    token_url = f"{KEYCLOAK_SERVER_URL}/realms/{REALM_NAME}/protocol/openid-connect/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "username": username,
+        "password": password,
+        "grant_type": "password"
+    }
+    response = requests.post(token_url, data=data)
+
+    if response.status_code == 200:
+        token = response.json().get("access_token")
+        return {"access_token": token}
+    else:
+        return {"error": "Échec de l'authentification"}

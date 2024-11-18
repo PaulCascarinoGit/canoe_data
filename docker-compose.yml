@@ -18,7 +18,7 @@ services:
     environment:
       DATABASE_URL: postgres://user:password@postgres_db:5432/mydatabase
       KEYCLOAK_SERVER_URL: "http://keycloak:8080"
-      REALM_NAME: "myrealm"
+      REALM_NAME: "myreal"
       CLIENT_ID: "fastapi-client"
       CLIENT_SECRET: "fastapi-clientsecret"  # Remplace par ton secret client Keycloak
     depends_on:
@@ -37,6 +37,15 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data  # Persistance des données de Keycloak
     restart: always
+
+
+  shiny_app:
+    build:
+      context: ./shiny  # Assurez-vous que le répertoire shiny contient le Dockerfile
+    ports:
+      - "3838:3838"
+    restart: always
+
 
 volumes:
   postgres_data:
