@@ -1,20 +1,18 @@
-# Utilise l'image officielle Python
-FROM python:3.10
+FROM python:3.10-slim
 
-# Définit le répertoire de travail
-WORKDIR /app
+# Installer les dépendances système nécessaires
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copie les fichiers de dépendances
+# Installer les dépendances Python
 COPY requirements.txt .
-
-# Installe les dépendances
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copie le code de l'application
-COPY app/ /app/app
+# Copier le reste de l'application
+COPY . /app
+WORKDIR /app
 
-# Expose le port de l'API
-EXPOSE 8000
-
-# Commande pour lancer l'application FastAPI
+# Commande de lancement
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

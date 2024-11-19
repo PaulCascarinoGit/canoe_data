@@ -1,52 +1,39 @@
-version: "3.8"
+version: '3.9'
 services:
-  postgres_db:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mydatabase
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-
-  fastapi_service:
+  api:
     build:
       context: ./api
     ports:
       - "8000:8000"
+    env_file: .env
     environment:
-      DATABASE_URL: postgres://user:password@postgres_db:5432/mydatabase
-      KEYCLOAK_SERVER_URL: "http://keycloak:8080"
-      REALM_NAME: "myreal"
-      CLIENT_ID: "fastapi-client"
-      CLIENT_SECRET: "fastapi-clientsecret"  # Remplace par ton secret client Keycloak
+      - KEYCLOAK_URL
+      - KEYCLOAK_REALM
+      - KEYCLOAK_CLIENT_ID
+      - KEYCLOAK_CLIENT_SECRET
     depends_on:
-      - postgres_db
       - keycloak
-    restart: always
-
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin_password
-    command: ["start-dev"]
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    command: start-dev
     ports:
       - "8080:8080"
-    volumes:
-      - keycloak_data:/opt/keycloak/data  # Persistance des données de Keycloak
-    restart: always
 
-
-  shiny_app:
+  shiny:
     build:
-      context: ./shiny  # Assurez-vous que le répertoire shiny contient le Dockerfile
+      context: ./shiny
     ports:
-      - "3838:3838"
-    restart: always
-
-
-volumes:
-  postgres_data:
-  keycloak_data:
+      - "${SHINY_PORT:-3838}:3838" # Valeur par défaut si SHINY_PORT n'est pas défini
+    depends_on:
+      - api
+    env_file: .env
+    environment:
+      - KEYCLOAK_URL
+      - KEYCLOAK_REALM
+      - KEYCLOAK_CLIENT_ID
+      - KEYCLOAK_CLIENT_SECRET
+    volumes:
+      - ./shiny/config:/srv/shiny-server/config # Ajusté pour éviter les conflits potentiels

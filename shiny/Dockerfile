@@ -1,14 +1,11 @@
-# Utilise une image de base pour R et Shiny
-FROM rocker/shiny:4.3.1
+FROM rocker/shiny
 
-RUN R -e "install.packages('httr')"
-RUN R -e "install.packages('shiny')"
+# Installer les dépendances système nécessaires
+RUN apt-get update && apt-get install -y libcurl4-openssl-dev libssl-dev
 
-# Copie l'application Shiny dans le conteneur
-COPY . /srv/shiny-server/
+# Installer les packages R nécessaires
+RUN R -e "install.packages(c('shiny', 'httr', 'jsonlite'), repos = 'https://cloud.r-project.org/')"
 
-# Expose le port 3838 pour accéder à l'application
-EXPOSE 3838
-
-# Commande pour démarrer l'application Shiny
-CMD ["R", "-e", "shiny::runApp('/srv/shiny-server', host = '0.0.0.0', port = 3838)"]
+# Copier les fichiers de l'application
+COPY app.R /srv/shiny-server/
+COPY config/client_secrets.json /srv/shiny-server/config/client_secrets.json

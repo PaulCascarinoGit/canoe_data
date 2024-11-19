@@ -1,60 +1,68 @@
 library(shiny)
 library(httr)
+library(jsonlite)
 
-# UI pour l'interface de connexion
+# Charger la configuration client
+client_secrets <- fromJSON("config/client_secrets.json")
+client_id <- client_secrets$web$client_id
+client_secret <- client_secrets$web$client_secret
+token_uri <- client_secrets$web$token_uri
+userinfo_uri <- client_secrets$web$userinfo_uri
+
+# UI
 ui <- fluidPage(
-  titlePanel("Connexion Keycloak"),
-  
-  sidebarLayout(
-    sidebarPanel(
-      textInput("username", "Nom d'utilisateur"),
-      passwordInput("password", "Mot de passe"),
-      actionButton("login_button", "Se connecter"),
-      textOutput("error_message")
-    ),
-    
-    mainPanel(
-      h3("Bienvenue dans l'application Shiny")
-    )
-  )
+    titlePanel("Shiny + Keycloak Authentication"),
+    textInput("username", "Username", ""),
+    passwordInput("password", "Password", ""),
+    actionButton("login", "Login"),
+    textOutput("user_info"),
+    textOutput("error_message")
 )
 
-# Serveur de l'application Shiny
+# Serveur
 server <- function(input, output, session) {
-  
-  # Fonction pour envoyer les informations de connexion à FastAPI
-  observeEvent(input$login_button, {
-    username <- input$username
-    password <- input$password
-    
-    # Vérifiez si l'utilisateur a fourni un nom d'utilisateur et un mot de passe
-    if (username == "" || password == "") {
-      output$error_message <- renderText("Veuillez entrer un nom d'utilisateur et un mot de passe.")
-      return(NULL)
-    }
-    
-    # Requête POST vers FastAPI pour obtenir un token via Keycloak
-    url <- "http://fastapi_service:8000/login"  # URL de votre API FastAPI
-
-    print(paste(url, username, password))
-    response <- POST(url, body = list(username = username, password = password), encode = "form")
-
-    print(content(response, as = "text"))
-    
-    if (status_code(response) == 200) {
-      # Si la connexion est réussie et que nous obtenons un token
-      content_data <- content(response)
-      token <- content_data$access_token
-      
-      # Vous pouvez utiliser ce token pour des appels API protégés, par exemple
-      output$error_message <- renderText(paste("Connexion réussie! Token : ", token))
-      
-    } else {
-      # Si la connexion échoue
-      output$error_message <- renderText("Erreur d'authentification, veuillez vérifier vos identifiants.")
-    }
-  })
+    observeEvent(input$login, {
+        # Authentification auprès de Keycloak avec username et password
+        res <- POST(
+            token_uri,
+            body = list(
+                grant_type = "password",
+                username = input$username,
+                password = input$password,
+                client_id = client_id,
+                client_secret = client_secret,
+                scope = "openid"  # Ajout du scope "openid"
+            ),
+            encode = "form"
+        )
+        
+        if (http_error(res)) {
+            output$error_message <- renderText({
+                paste("Authentication failed:", content(res, "text"))
+            })
+        } else {
+            token <- content(res, "parsed")
+            
+            # Récupérer les informations utilisateur
+            userinfo_res <- GET(
+                userinfo_uri,
+                add_headers(Authorization = paste("Bearer", token$access_token))
+            )
+            
+            if (http_error(userinfo_res)) {
+                output$error_message <- renderText({
+                    paste("Failed to retrieve user info:", content(userinfo_res, "text"))
+                })
+            } else {
+                userinfo <- content(userinfo_res, "parsed")
+                output$user_info <- renderText({
+                    paste("Welcome,", userinfo$name)
+                })
+                output$error_message <- renderText("")
+            }
+        }
+    })
 }
 
-# Lancer l'application Shiny
-shinyApp(ui = ui, server = server)
+# Lancer l'application
+shinyApp(ui, server)
