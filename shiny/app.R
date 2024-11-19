@@ -11,13 +11,29 @@ client_secret <- client_secrets$web$client_secret
 token_uri <- client_secrets$web$token_uri
 userinfo_uri <- client_secrets$web$userinfo_uri
 
+
+
 # Connexion à la base de données PostgreSQL
-con <- dbConnect(RPostgres::Postgres(), 
-                 host = "postgres", 
-                 port = 5432, 
-                 user = "shiny_user", 
-                 password = "shiny_password", 
-                 dbname = "shiny_db")
+con <- tryCatch({
+  dbConnect(RPostgres::Postgres(), 
+            host = "postgres", 
+            port = 5432, 
+            user = "shiny_user", 
+            password = "shiny_password", 
+            dbname = "shiny_db")
+}, error = function(e) {
+  NULL  # Si la connexion échoue, retourner NULL
+})
+
+# Vérification de la connexion
+if (is.null(con)) {
+  print("Erreur de connexion à la base de données.")
+  output$error_message <- renderText({
+    "Erreur de connexion à la base de données PostgreSQL."
+  })
+} else {
+  print("Connexion à la base de données réussie.")
+}
 
 # UI de la page de connexion
 login_ui <- fluidPage(
@@ -96,29 +112,44 @@ server <- function(input, output, session) {
       } else {
         userinfo <- content(userinfo_res, "parsed")
         
-        # # Vérification de la présence des informations utilisateur
-        # if (is.null(userinfo$name) || is.null(userinfo$email)) {
-        #   output$error_message <- renderText("Les informations utilisateur sont incomplètes.")
-        #   return()
-        # }
-        
-        userinfo$name <- "paul"
-        userinfo$email <- "ck"
-
         # Sauvegarder les informations utilisateur dans la session
         output$user_info <- renderText({
           paste("Bienvenue,", userinfo$name)
         })
         
-        # Enregistrer dans la base de données (optionnel)
         username <- as.character(input$username)
         name <- as.character(userinfo$name)
-        email <- as.character(userinfo$email)
-        access_token <- as.character(token$access_token)
         
-        dbExecute(con, "INSERT INTO users (username, name, email, access_token) 
-                         VALUES ($1, $2, $3, $4)", 
-                  params = list(username, name, email, access_token))
+        # Vérifier si l'utilisateur existe déjà dans la base de données
+        user_exists <- dbGetQuery(con, 
+                                  "SELECT COUNT(*) FROM users WHERE username = $1", 
+                                  params = list(username))
+
+       
+        if (user_exists == 0) { 
+
+          print("L'utilisateur n'existe pas encore.")
+          # Insérer l'utilisateur dans la base de données si l'utilisateur n'existe pas
+          dbExecute(con, 
+                    "INSERT INTO users (username, name, jetons) 
+                    VALUES ($1, $2, $3)", 
+                    params = list(username, "name", 0))
+
+
+          output$user_info <- renderText({
+            paste("Utilisateur ajouté:", username)
+          })
+        } else {
+          print("L'utilisateur existe ?")
+          # Incrémenter les jetons si l'utilisateur existe déjà
+          dbExecute(con, 
+                    "UPDATE users SET jetons = jetons + 1 WHERE username = $1", 
+                    params = list(username))
+          
+          output$user_info <- renderText({
+            paste("Utilisateur déjà connecté:", user_exists, username, "Jetons:", user_exists$`COUNT(*)`)
+          })
+        }
         
         # Mettre à jour l'état de l'authentification
         user_authenticated(TRUE)

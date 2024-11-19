@@ -49,7 +49,6 @@ services:
       POSTGRES_PASSWORD: shiny_password
     volumes:
       - ./postgres/init:/docker-entrypoint-initdb.d  # Monte le répertoire contenant init.sql
-      - postgres_data:/var/lib/postgresql/data  # Volume persistant pour PostgreSQL
     ports:
       - "5432:5432"
 
