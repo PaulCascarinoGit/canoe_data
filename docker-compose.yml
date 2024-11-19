@@ -13,6 +13,7 @@ services:
       - KEYCLOAK_CLIENT_SECRET
     depends_on:
       - keycloak
+
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     environment:
@@ -21,12 +22,14 @@ services:
     command: start-dev
     ports:
       - "8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/dataour Keycloak
 
   shiny:
     build:
       context: ./shiny
     ports:
-      - "${SHINY_PORT:-3838}:3838" # Valeur par défaut si SHINY_PORT n'est pas défini
+      - "${SHINY_PORT:-3838}:3838"  # Valeur par défaut si SHINY_PORT n'est pas défini
     depends_on:
       - api
     env_file: .env
@@ -36,4 +39,22 @@ services:
       - KEYCLOAK_CLIENT_ID
       - KEYCLOAK_CLIENT_SECRET
     volumes:
-      - ./shiny/config:/srv/shiny-server/config # Ajusté pour éviter les conflits potentiels
+      - ./shiny/config:/srv/shiny-server/config  # Ajusté pour éviter les conflits potentiels
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: shiny_db
+      POSTGRES_USER: shiny_user
+      POSTGRES_PASSWORD: shiny_password
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d  # Monte le répertoire contenant init.sql
+      - postgres_data:/var/lib/postgresql/data  # Volume persistant pour PostgreSQL
+    ports:
+      - "5432:5432"
+
+volumes:
+  keycloak_data:
+    driver: local
+  postgres_data:  # Déclaration du volume persistant pour PostgreSQL
+    driver: local
